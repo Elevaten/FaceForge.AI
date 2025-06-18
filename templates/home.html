@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<head>
+  <meta charset="UTF-8">
+  <title>FaceForger AI</title>
+  <style>
+     body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: url("/static/background.jpg") no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+
+    .container {
+      background: rgb(231, 231, 231);
+      padding: 2rem 3rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    input[type="file"] {
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 1rem 0;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+
+    .btn:hover {
+      background-color: #2980b9;
+    }
+
+    .radio-group {
+      display: none;
+    }
+
+    .selected {
+      background-color: #2ecc71 !important;
+    }
+
+    button[type="submit"] {
+      margin-top: 1rem;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #e67e22;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #d35400;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+    }
+
+    #loading {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.8);
+      z-index: 9999;
+      text-align: center;
+      padding-top: 20%;
+      font-size: 1.5em;
+      font-family: sans-serif;
+    }
+    #loading-message {
+  margin-top: 1rem;
+  font-size: 1.2em;
+  color: #333;
+  transition: all 0.3s ease;
+  }
+
+
+    .loader {
+      border: 8px solid #f3f3f3;
+      border-top: 8px solid #3498db;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin: auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div style="position: fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.4); z-index: -1;"></div>
+
+  <div class="container">
+    <img src="{{ url_for('static', filename='Forge.png') }}" alt="FaceForger AI" style="max-width: 300px; margin-bottom: 1rem;">
+    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="image" accept="image/*" required>
+
+      <label>Choose Size:</label>
+      <div class="btn-group" id="size-options">
+        <button type="button" class="btn" data-value="1x1">1x1</button> 
+        <button type="button" class="btn" data-value="2x2">2x2</button>
+        <button type="button" class="btn" data-value="passport">Passport</button>
+      </div>
+      <input type="hidden" name="size" id="size" value="">
+
+      <label>Background:</label>
+      <div class="btn-group" id="bg-options">
+        <button type="button" class="btn" data-value="white">White</button>
+        <button type="button" class="btn" data-value="transparent">No Background</button>
+      </div>
+      <input type="hidden" name="bg" id="bg" value="">
+
+      <button type="submit">Generate ID Photo</button>
+    </form>
+
+    <!-- Loading overlay -->
+    <div id="loading">
+      <div class="loader"></div>
+      <p id="loading-message">Please wait...</p>
+    </div>
+  </div>
+
+  <script>
+    function setupButtons(groupId, hiddenInputId) {
+      const buttons = document.querySelectorAll(`#${groupId} .btn`);
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          buttons.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          document.getElementById(hiddenInputId).value = btn.dataset.value;
+        });
+      });
+    }
+
+    setupButtons('size-options', 'size');
+  setupButtons('bg-options', 'bg');
+
+  document.querySelector("form").addEventListener("submit", function(e) {
+    const loading = document.getElementById("loading");
+    const message = document.getElementById("loading-message");
+
+    loading.style.display = "block";
+    message.textContent = "Uploading photo...";
+
+    // Simulate step changes
+    setTimeout(() => message.textContent = "Removing background...", 800);
+    setTimeout(() => message.textContent = "Centering face...", 1600);
+    setTimeout(() => message.textContent = "Cropping & resizing...", 2400);
+    setTimeout(() => message.textContent = "Finalizing output...", 3200);
+  });
+  </script>
+</body>
+</html>
