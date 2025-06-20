@@ -5,8 +5,7 @@ from rembg import remove
 from PIL import Image
 from io import BytesIO
 import numpy as np
-import face_recognition
-from PIL import ImageEnhance
+import cv2
 
 app = Flask(__name__)
 
@@ -17,12 +16,15 @@ PROCESSED_FOLDER = os.path.join(BASE_DIR, 'processed')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
-# 📏 Size mapping (in pixels, assuming 300 DPI)
+# Size mapping (in pixels, assuming 300 DPI)
 SIZE_MAP = {
     '1x1': (300, 300),
     '2x2': (600, 600),
     'passport': (413, 531),
 }
+
+# Load OpenCV face detector
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 @app.route('/')
 def home():
@@ -46,13 +48,13 @@ def upload():
 
         image = Image.open(BytesIO(output_bytes)).convert("RGBA")
 
-        # Face auto-centering
+        # Auto-center face using OpenCV
         def auto_center_face(pil_image, target_size):
             np_image = np.array(pil_image.convert("RGB"))
-            face_locations = face_recognition.face_locations(np_image)
+            gray = cv2.cvtColor(np_image, cv2.COLOR_RGB2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
-            if not face_locations:
-                # Fallback: just resize and center normally
+            if len(faces) == 0:
                 scale = min(target_size[0] / pil_image.width, target_size[1] / pil_image.height) * 0.75
                 resized = pil_image.resize(
                     (int(pil_image.width * scale), int(pil_image.height * scale)),
@@ -61,52 +63,42 @@ def upload():
                 canvas = Image.new("RGBA", target_size, (255, 255, 255, 0))
                 offset = (
                     (target_size[0] - resized.width) // 2,
-                    (target_size[1] - resized.height) // 2
+                    (target_size[1] - resized.height) // 2 + int(0.05 * target_size[1])
                 )
                 canvas.paste(resized, offset, resized)
                 return canvas
 
-            # Zoom out by increasing margin
-            top, right, bottom, left = face_locations[0]
-            face_margin = 2.0  # Zoom out more; try 1.8 to 2.2 if needed
+            x, y, w, h = faces[0]
+            cx = x + w // 2
+            cy = y + h // 2
+            margin = 2.0
 
-            face_width = right - left
-            face_height = bottom - top
-            cx = (left + right) // 2
-            cy = (top + bottom) // 2
+            crop_w = int(w * margin)
+            crop_h = int(h * margin)
 
-            crop_w = int(face_width * face_margin)
-            crop_h = int(face_height * face_margin)
+            left = max(cx - crop_w // 2, 0)
+            top = max(cy - int(crop_h * 0.7), 0)
+            right = min(cx + crop_w // 2, pil_image.width)
+            bottom = min(cy + crop_h // 2, pil_image.height)
 
-            left_crop = max(cx - crop_w // 2, 0)
-            top_crop = max(cy - int(crop_h * 0.7), 0)  # shift crop higher to show more top
-
-            right_crop = min(cx + crop_w // 2, pil_image.width)
-            bottom_crop = min(cy + crop_h // 2, pil_image.height)
-
-            cropped = pil_image.crop((left_crop, top_crop, right_crop, bottom_crop))
+            cropped = pil_image.crop((left, top, right, bottom))
             resized = cropped.resize(target_size, Image.Resampling.LANCZOS)
 
-            # Shift face lower (positive y = lower face in frame)
             canvas = Image.new("RGBA", target_size, (255, 255, 255, 0))
-            offset_y = int(0.01 * target_size[1])  # try 0.03 to 0.1 for small downward shift
+            offset_y = int(0.01 * target_size[1])
             canvas.paste(resized, (0, offset_y), resized)
 
             return canvas
 
-
         target_size = SIZE_MAP.get(selected_size, (600, 600))
         centered = auto_center_face(image, target_size)
 
-    
         if bg_option == 'white':
-            # Merge with white background
             result = Image.new("RGB", target_size, (255, 255, 255))
             result.paste(centered, (0, 0), centered)
             processed_path = os.path.join(PROCESSED_FOLDER, filename.replace('.png', '.jpg'))
             result.save(processed_path, format="JPEG")
         else:
-            # Transparent background
             processed_path = os.path.join(PROCESSED_FOLDER, filename)
             centered.save(processed_path, format="PNG")
 
@@ -128,8 +120,6 @@ def download_file(filename):
                          as_attachment=True, download_name=filename)
     else:
         return "File not found", 404
-    
-    
 
 if __name__ == '__main__':
     app.run(debug=True)
